@@ -1,0 +1,72 @@
+version: '3.8'
+services:
+  php:
+    build:
+      dockerfile: ./docker/php/Dockerfile
+    expose:
+      - "9000"
+    ports:
+      - "9001"
+    volumes:
+      - ./src:/src
+      - ./docker/php/php.ini:/usr/local/etc/php/conf.d/php.ini
+      - ./docker/php/xdebug.ini:/usr/local/etc/php/conf.d/xdebug.ini
+    env_file:
+      - ./src/.env
+    working_dir: /src
+    depends_on:
+      - mysql
+      - redis
+      - mailpit
+    restart: no
+
+  nginx:
+    image: nginx:1.25-alpine
+    ports:
+      - "80:80"
+      - "8080:8080"
+    restart: no
+    volumes:
+      - ./docker/nginx:/etc/nginx/conf.d
+      - ./src:/src
+      - ./logs/nginx:/var/log/nginx
+    links:
+      - php
+    depends_on:
+      - php
+    entrypoint: nginx -g 'daemon off;'
+    working_dir: /src
+
+
+  mysql:
+    ports:
+      - "3306:3306"
+    image: library/mysql:8.0.34
+    restart: no
+    environment:
+      - MYSQL_USER=user
+      - MYSQL_PASSWORD=password
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=laravel
+      - MYSQL_TCP_PORT=3306
+    volumes:
+      - ./data/mysql:/var/lib/mysql
+
+  redis:
+    restart: no
+    ports:
+      - "6379:6379"
+    image: redis:alpine
+    command: redis-server --requirepass dg7f77hs7jhf8gbe112
+    volumes:
+      - ./data/redis/data:/data
+
+  mailpit:
+    image: 'axllent/mailpit:latest'
+    restart: no
+    ports:
+      - '1025:1025'
+      - '8025:8025'
+
+volumes:
+  src:
